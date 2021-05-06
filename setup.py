@@ -1,5 +1,5 @@
 import setuptools
-# import pytorch_sfid
+import pytorch_sfid
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pytorch-sfid",
-    version="0.0.1",  # pytorch_sfid.__version__,
+    version=pytorch_sfid.__version__,
     author="Even M. Nordhagen",
     author_email="not.an.address@yes.com",
     description=(
