@@ -67,7 +67,7 @@ def get_stats(real_images, real_attr, ncenters=None, radius=None,
 
 def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
              real_stats=None, ncenters=None, radius=None, batch_size=None,
-             dims=None, device=None):
+             dims=None, device=None, prnt=False):
     """Sliding Frechet Inception Distance
 
     Parameters
@@ -85,13 +85,13 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
     assert (real_images is not None and real_attr is not None) or real_stats is not None
     assert fake_images.shape[0] == fake_attr.shape[0]
 
-    ncond = fake_attr.shape[1]
-    nbins = ncenters ** ncond
-
     if ncenters is None:
         ncenters = ps_params.ncenters
     if radius is None:
         radius = ps_params.radius
+
+    ncond = fake_attr.shape[1]
+    nbins = ncenters ** ncond
 
     if real_images is not None:
         # standardize attributes (between 0 and 1)
@@ -110,33 +110,11 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
     else:
         real_m, real_s, min_attr, max_attr = real_stats
         fake_attr = (fake_attr - min_attr) / (max_attr - min_attr)
+        fake_attr = torch.where(fake_attr > 1, torch.ones(1), fake_attr)
+        fake_attr = torch.where(fake_attr < 0, torch.zeros(1), fake_attr)
         bins_fake = get_bins(fake_attr, ncenters, radius)
 
-    '''
-    # sort attributes in (overlapping) Na-dimensional bins
-    centers = torch.linspace(0, 1, ncenters)
-    lower_edge = centers - radius
-    upper_edge = centers + radius
-
-    # find which samples that belong to which bins
-    reals = torch.logical_and(real_attr[:, :, None] > lower_edge[None, None, :],
-                              real_attr[:, :, None] < upper_edge[None, None, :])
-    fakes = torch.logical_and(fake_attr[:, :, None] > lower_edge[None, None, :],
-                              fake_attr[:, :, None] < upper_edge[None, None, :])
-
-    reals = reals.swapaxes(0, 1).swapaxes(1, 2)
-    fakes = fakes.swapaxes(0, 1).swapaxes(1, 2)
-    bins_real = reals[0]
-    bins_fake = fakes[0]
-    for i in range(1, ncond):
-        bins_real = torch.einsum('i...,j...->ij...', bins_real, reals[i])
-        bins_fake = torch.einsum('i...,j...->ij...', bins_fake, fakes[i])
-
-    bins_real = bins_real.reshape(-1, nreal)
-    bins_fake = bins_fake.reshape(-1, nfake)
-    '''
-
-    val_fid = 0
+    fid_cum = 0
     for i in range(nbins):
         indices_fake = torch.where(bins_fake[i])[0]
         fake_local = fake_images[indices_fake]
@@ -148,22 +126,15 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
             real_local = real_local.repeat(1, 3, 1, 1)
 
             if real_local.shape[0] > 1 and fake_local.shape[0] > 1:
-                val_fid += pfw.fid(fake_local, real_images=real_local,
-                                   batch_size=batch_size, dims=dims, device=device)
+                fid_local = pfw.fid(fake_local, real_images=real_local,
+                                    batch_size=batch_size, dims=dims, device=device)
         else:
             real_m_local, real_s_local = real_m[i], real_s[i]
             if real_s_local is not None and fake_local.shape[0] > 1:
-                val_fid += pfw.fid(fake_local, real_m=real_m_local, real_s=real_s_local,
-                                   batch_size=batch_size, dims=dims, device=device)
-        print(val_fid)
-    return val_fid / nbins
+                fid_local = pfw.fid(fake_local, real_m=real_m_local, real_s=real_s_local,
+                                    batch_size=batch_size, dims=dims, device=device)
+        if prnt:
+            print("[{}/{}]  num fake: {:>6}  FID: {:10.4f}".format(i, nbins, fake_local.shape[0], fid_local))
+        fid_cum += fid_local
+    return fid_cum / nbins
 
-
-if __name__ == "__main__":
-    N = 1000
-    real_images = torch.rand(N, 1, 128, 128)
-    real_attr = torch.rand((N, 3))
-    fake_attr = torch.rand((N, 3))
-
-    real_stats = get_stats(real_images, real_attr)
-    sfid_score(real_images, real_attr, real_stats=real_stats, radius=0.6, ncenters=3)
