@@ -1,6 +1,7 @@
-__version__ = "0.0.1"
-from pytorch_sfid import params
+__version__ = "0.0.2"
 import pytorch_fid_wrapper as pfw
+from pytorch_sfid import params
+from pytorch_sfid.sfid import get_sfid, get_stats
 
 
 def set_config(ncenters=None, radius=None, batch_size=None, dims=None,
