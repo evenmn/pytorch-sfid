@@ -30,6 +30,7 @@ def sfid_score(real_images, real_attr, fake_images, fake_attr, ncenters=None,
     nreal = real_images.shape[0]
     nfake = fake_images.shape[0]
     ncond = real_attr.shape[1]
+    nbins = ncenters ** ncond
 
     if ncenters is None:
         ncenters = ps_params.ncenters
@@ -50,38 +51,42 @@ def sfid_score(real_images, real_attr, fake_images, fake_attr, ncenters=None,
     lower_edge = centers - radius
     upper_edge = centers + radius
 
-    reals = torch.zeros((ncenters, nreal, ncond), dtype=bool)
-    fakes = torch.zeros((ncenters, nfake, ncond), dtype=bool)
-    for i, center in enumerate(centers):
-        reals[i] = (real_attr > center - radius) & (center + radius > real_attr)
-        fakes[i] = (fake_attr > center - radius) & (center + radius > fake_attr)
+    # find which samples that belong to which bins
+    reals = torch.logical_and(real_attr[:, :, None] > lower_edge[None, None, :],
+                              real_attr[:, :, None] < upper_edge[None, None, :])
+    fakes = torch.logical_and(fake_attr[:, :, None] > lower_edge[None, None, :],
+                              fake_attr[:, :, None] < upper_edge[None, None, :])
 
-    print(reals.shape)
-    stop
+    reals = reals.swapaxes(0, 1).swapaxes(1, 2)
+    fakes = fakes.swapaxes(0, 1).swapaxes(1, 2)
+    bins_real = reals[0]
+    bins_fake = fakes[0]
+    for i in range(1, ncond):
+        bins_real = torch.einsum('i...,j...->ij...', bins_real, reals[i])
+        bins_fake = torch.einsum('i...,j...->ij...', bins_fake, fakes[i])
 
-    # divide attributes into bins
-    boundaries = torch.linspace(0, 1, ncenters)
-    # torch.bucketize works the same way as np.digitize, but on torch tensors
-    ind_real = torch.bucketize(real_attr, boundaries)
-    ind_fake = torch.bucketize(fake_attr, boundaries)
-
-
+    bins_real = bins_real.reshape(-1, nreal)
+    bins_fake = bins_fake.reshape(-1, nfake)
 
     val_fid = 0
-    for center in torch.linspace(0, 1, ncenters):
-        real_ind = torch.where((center-radius)<real_attr<(center+radius))
-        fake_ind = torch.where((center-radius)<fake_attr<(center+radius))
+    for i in range(nbins):
+        indices_real = torch.where(bins_real[i])[0]
+        indices_fake = torch.where(bins_fake[i])[0]
+        real_local = real_images[indices_real]
+        fake_local = fake_images[indices_fake]
 
-        real_local = real_images[real_ind]
-        fake_local = fake_images[fake_ind]
+        real_local = real_local.repeat(1, 3, 1, 1)
+        fake_local = fake_local.repeat(1, 3, 1, 1)
 
-        val_fid += pfw.fid(fake_local, real_images=real_local,
-                           batch_size=batch_size, dims=dims, device=device)
-
-    return val_fid / ncenters
+        if real_local.shape[0] > 1 and fake_local.shape[0] > 1:
+            print(real_local.shape[0], fake_local.shape[0])
+            val_fid += pfw.fid(fake_local, real_images=real_local,
+                               batch_size=batch_size, dims=dims, device=device)
+    return val_fid / nbins
 
 
 if __name__ == "__main__":
-    real_images = torch.rand(640000, 1, 128, 128)
-    real_attr = torch.rand(640000, 100)
-    sfid_score(real_images, real_attr, real_images, real_attr)
+    real_images = torch.rand(10000, 1, 128, 128)
+    real_attr = torch.rand((10000, 3))
+    fake_attr = torch.rand((10000, 3))
+    sfid_score(real_images, real_attr, real_images, fake_attr, radius=0.19, ncenters=3)
