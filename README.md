@@ -24,7 +24,7 @@ ps.set_config(ncenters=NCENTERS, radius=RADIUS, batch_size=BATCH_SIZE, dims=DIMS
 # optional
 real_stats = ps.get_stats(real_images=REAL_IMAGES, real_attr=REAL_ATTR)
 
-# 
+# get SFID
 sfid = ps.get_sfid(FAKE_IMAGES, FAKE_ATTR, real_images=REAL_IMAGES, real_attr=REAL_ATTR)
 
 or
