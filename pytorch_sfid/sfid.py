@@ -5,7 +5,7 @@ from pytorch_sfid import params as ps_params
 
 def get_bins(attr, ncenters, radius):
     """Sort attributes into bins and return indices
-    
+
     Parameters:
     -----------
     attr : torch FloatTensor, N x Na
@@ -29,9 +29,9 @@ def get_bins(attr, ncenters, radius):
 
 
 def get_stats(real_images, real_attr, ncenters=None, radius=None,
-              batch_size=None, dims=None, device=None):
+              batch_size=None, dims=None, device=None, prnt=False):
     """Get statistics of real images
-    
+
     Parameters:
     -----------
     real_images : torch FloatTensor, N x C x H x W
@@ -62,6 +62,10 @@ def get_stats(real_images, real_attr, ncenters=None, radius=None,
         else:
             real_m.append(None)
             real_s.append(None)
+
+        if prnt:
+            print("[{}/{}]  num real: {:>6}".format(i, bins.shape[0], real_local.shape[0]))
+
     return real_m, real_s, min_attr, max_attr
 
 
@@ -81,7 +85,7 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
     fake_attr : torch FloatTensor, Nf x Na
         Attributes of fake images
     """
-    
+
     assert (real_images is not None and real_attr is not None) or real_stats is not None
     assert fake_images.shape[0] == fake_attr.shape[0]
 
@@ -137,4 +141,3 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
             print("[{}/{}]  num fake: {:>6}  FID: {:10.4f}".format(i, nbins, fake_local.shape[0], fid_local))
         fid_cum += fid_local
     return fid_cum / nbins
-
