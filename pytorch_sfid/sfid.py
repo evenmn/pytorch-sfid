@@ -127,7 +127,7 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
         if real_images is not None:
             indices_real = torch.where(bins_real[i])[0]
             real_local = real_images[indices_real]
-            real_local = real_local.repeat(1, 3, 1, 1)
+            real_local = real_local.repeat_interleave(3)
 
             if real_local.shape[0] > 1 and fake_local.shape[0] > 1:
                 fid_local = pfw.fid(fake_local, real_images=real_local,

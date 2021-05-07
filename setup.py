@@ -11,8 +11,7 @@ setuptools.setup(
     author="Even M. Nordhagen",
     author_email="not.an.address@yes.com",
     description=(
-        "Wrapper around the pytorch-fid package to compute Frechet Inception"
-        + "Distance (FID) using PyTorch in-memory given tensors of images."
+        "Computes the Sliding Frechet Inception Distance (SFID) between two sets of images with contonous conditions."
     ),
     long_description=long_description,
     long_description_content_type="text/markdown",
