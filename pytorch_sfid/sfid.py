@@ -34,7 +34,7 @@ def get_stats(real_images, real_attr, ncenters=None, radius=None,
 
     Parameters:
     -----------
-    real_images : torch FloatTensor, N x C x H x W
+    real_images : torch FloatTensor, N x 3 x H x W
     """
 
     if ncenters is None:
@@ -53,7 +53,7 @@ def get_stats(real_images, real_attr, ncenters=None, radius=None,
     for i in range(bins.shape[0]):
         indices = torch.where(bins[i])[0]
         real_local = real_images[indices]
-        real_local = real_local.repeat(1, 3, 1, 1)
+        #real_local = real_local.repeat(1, 3, 1, 1)
 
         if real_local.shape[0] > 1:
             m, s = pfw.get_stats(real_local, batch_size=batch_size, dims=dims, device=device)
@@ -76,11 +76,11 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
 
     Parameters
     ----------
-    real : torch FloatTensor, Nr x Nc x H x W
+    real : torch FloatTensor, Nr x 3 x H x W
         Real images
     real_attr : torch FloatTensor, Nr x Na
         Attributes of real images
-    fake : torch FloatTensor, Nf x Nc x H x W
+    fake : torch FloatTensor, Nf x 3 x H x W
         Fake images
     fake_attr : torch FloatTensor, Nf x Na
         Attributes of fake images
@@ -122,7 +122,7 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
     for i in range(nbins):
         indices_fake = torch.where(bins_fake[i])[0]
         fake_local = fake_images[indices_fake]
-        fake_local = fake_local.repeat(1, 3, 1, 1)
+        #fake_local = fake_local.repeat(1, 3, 1, 1)
 
         if real_images is not None:
             indices_real = torch.where(bins_real[i])[0]
