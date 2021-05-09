@@ -56,7 +56,7 @@ def get_stats(real_images, real_attr, ncenters=None, radius=None,
         real_local = real_local.repeat(1, 3, 1, 1)
 
         if real_local.shape[0] > 1:
-            m, s = pfw.get_stats(real_local, batch_size, dims, device)
+            m, s = pfw.get_stats(real_local, batch_size=batch_size, dims=dims, device=device)
             real_m.append(m)
             real_s.append(s)
         else:
