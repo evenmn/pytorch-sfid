@@ -112,10 +112,14 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
         bins_fake = get_bins(fake_attr, ncenters, radius)
 
     else:
+        zero = torch.zeros(1).to(fake_attr.device)
+        one = torch.one(1).to(fake_attr.device)
+
         real_m, real_s, min_attr, max_attr = real_stats
         fake_attr = (fake_attr - min_attr) / (max_attr - min_attr)
-        fake_attr = torch.where(fake_attr > 1, torch.ones(1).to(fake_attr.device), fake_attr)
-        fake_attr = torch.where(fake_attr < 0, torch.zeros(1).to(fake_attr.device), fake_attr)
+
+        fake_attr = torch.where(fake_attr > 1, one, fake_attr)
+        fake_attr = torch.where(fake_attr < 0, zero, fake_attr)
         bins_fake = get_bins(fake_attr, ncenters, radius)
 
     fid_cum = 0
@@ -127,7 +131,7 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
         if real_images is not None:
             indices_real = torch.where(bins_real[i])[0]
             real_local = real_images[indices_real]
-            real_local = real_local.repeat_interleave(3)
+            #real_local = real_local.repeat_interleave(3)
 
             if real_local.shape[0] > 8 and fake_local.shape[0] > 8:
                 fid_local = pfw.fid(fake_local, real_images=real_local,
