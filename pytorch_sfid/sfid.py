@@ -12,7 +12,7 @@ def get_bins(attr, ncenters, radius):
         Attributes
     """
     # sort attributes
-    centers = torch.linspace(0, 1, ncenters)
+    centers = torch.linspace(0, 1, ncenters).to(attr.device)
     lower_edge = centers - radius
     upper_edge = centers + radius
     smt = torch.logical_and(attr[:, :, None] > lower_edge[None, None, :],
@@ -55,7 +55,7 @@ def get_stats(real_images, real_attr, ncenters=None, radius=None,
         real_local = real_images[indices]
         #real_local = real_local.repeat(1, 3, 1, 1)
 
-        if real_local.shape[0] > 1:
+        if real_local.shape[0] > 8:
             m, s = pfw.get_stats(real_local, batch_size=batch_size, dims=dims, device=device)
             real_m.append(m)
             real_s.append(s)
@@ -114,8 +114,8 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
     else:
         real_m, real_s, min_attr, max_attr = real_stats
         fake_attr = (fake_attr - min_attr) / (max_attr - min_attr)
-        fake_attr = torch.where(fake_attr > 1, torch.ones(1), fake_attr)
-        fake_attr = torch.where(fake_attr < 0, torch.zeros(1), fake_attr)
+        fake_attr = torch.where(fake_attr > 1, torch.ones(1).to(fake_attr.device), fake_attr)
+        fake_attr = torch.where(fake_attr < 0, torch.zeros(1).to(fake_attr.device), fake_attr)
         bins_fake = get_bins(fake_attr, ncenters, radius)
 
     fid_cum = 0
@@ -129,12 +129,12 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
             real_local = real_images[indices_real]
             real_local = real_local.repeat_interleave(3)
 
-            if real_local.shape[0] > 1 and fake_local.shape[0] > 1:
+            if real_local.shape[0] > 8 and fake_local.shape[0] > 8:
                 fid_local = pfw.fid(fake_local, real_images=real_local,
                                     batch_size=batch_size, dims=dims, device=device)
         else:
             real_m_local, real_s_local = real_m[i], real_s[i]
-            if real_s_local is not None and fake_local.shape[0] > 1:
+            if real_s_local is not None and fake_local.shape[0] > 8:
                 fid_local = pfw.fid(fake_local, real_m=real_m_local, real_s=real_s_local,
                                     batch_size=batch_size, dims=dims, device=device)
         if prnt:
