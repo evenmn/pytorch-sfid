@@ -36,7 +36,7 @@ The number of centers and the radius should be chosen such that most bins will c
 ## What does the code do?
 The attributes are sorted into bins based on overlapping intervals. Then the indices of the images residing each bin is stored in an `ncond` x `ncenters`x `nimg` tensor, which is iterated. For each bin, we obtain the FID-score of the images, and the SFID score is found from summing over the FID score of all the bins:
 
-<img src="https://latex.codecogs.com/gif.latex?\text{SFID}=\sum_{\text{bin}}\text{FID(bin)}" />.
+<img src="https://latex.codecogs.com/gif.latex?\text{SFID}=\frac{1}{N_{\text{bins}}}\sum_{i=1}^{N_{\text{bins}}}\text{FID(bin)}" />.
 
 The code itself utilizes `torch` only, and should be sufficiently fast. However, to find the FID values, we use `pytorch-fid`, which can be perceived as slow (even though it is as fast as it can be). 
 
