@@ -1,5 +1,6 @@
 import torch
 import pytorch_fid_wrapper as pfw
+from pytorch_fid_wrapper.fid_score import calculate_frechet_distance as cfd
 from pytorch_sfid import params as ps_params
 
 
@@ -57,8 +58,13 @@ def get_stats(real_images, real_attr, ncenters=None, radius=None,
 
         if real_local.shape[0] > 8:
             m, s = pfw.get_stats(real_local, batch_size=batch_size, dims=dims, device=device)
-            real_m.append(m)
-            real_s.append(s)
+            m, s = torch.FloatTensor(m), torch.FloatTensor(s)
+            if torch.all(torch.isfinite(m)) and torch.all(torch.isfinite(s)):
+                real_m.append(m)
+                real_s.append(s)
+            else:
+                real_m.append(None)
+                real_s.append(None)
         else:
             real_m.append(None)
             real_s.append(None)
@@ -67,6 +73,25 @@ def get_stats(real_images, real_attr, ncenters=None, radius=None,
             print("[{}/{}]  num real: {:>6}".format(i, bins.shape[0], real_local.shape[0]))
 
     return real_m, real_s, min_attr, max_attr
+
+
+def calculate_frechet_distance(stats1, stats2, eps=1e-6, prnt=False):
+    """Torch implementation of Frechet Distance
+    """
+    mu1s, sigma1s, _, _ = stats1
+    mu2s, sigma2s, _, _ = stats2
+
+    assert len(mu1s) == len(mu2s)
+    nbins = len(mu1s)
+
+    fid_cum = 0
+    for i, (mu1, sigma1, mu2, sigma2) in enumerate(zip(mu1s, sigma1s, mu2s, sigma2s)):
+        if mu1 is not None and mu2 is not None:
+            fid_local = cfd(mu1, sigma1, mu2, sigma2, eps)
+        if prnt:
+            print("[{}/{}]  FID: {:10.4f}".format(i, nbins, fid_local))
+        fid_cum += fid_local
+    return fid_cum / nbins
 
 
 def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
@@ -107,41 +132,26 @@ def get_sfid(fake_images, fake_attr, real_images=None, real_attr=None,
         real_attr = (real_attr - min_attr) / (max_attr - min_attr)
         fake_attr = (fake_attr - min_attr) / (max_attr - min_attr)
 
-        # get bins
-        bins_real = get_bins(real_attr, ncenters, radius)
-        bins_fake = get_bins(fake_attr, ncenters, radius)
+        # get stats
+        real_stats = get_stats(real_images, real_attr, ncenters, radius,
+                               batch_size, dims, device, prnt)
+        fake_stats = get_stats(fake_images, fake_attr, ncenters, radius, 
+                               batch_size, dims, device, prnt)
 
     else:
+        # standarize attributes (between 0 and 1)
         zero = torch.zeros(1).to(fake_attr.device)
-        one = torch.one(1).to(fake_attr.device)
+        one = torch.ones(1).to(fake_attr.device)
 
         real_m, real_s, min_attr, max_attr = real_stats
         fake_attr = (fake_attr - min_attr) / (max_attr - min_attr)
 
         fake_attr = torch.where(fake_attr > 1, one, fake_attr)
         fake_attr = torch.where(fake_attr < 0, zero, fake_attr)
-        bins_fake = get_bins(fake_attr, ncenters, radius)
 
-    fid_cum = 0
-    for i in range(nbins):
-        indices_fake = torch.where(bins_fake[i])[0]
-        fake_local = fake_images[indices_fake]
-        #fake_local = fake_local.repeat(1, 3, 1, 1)
+        # get stats
+        fake_stats = get_stats(fake_images, fake_attr, ncenters, radius, 
+                               batch_size, dims, device, prnt)
 
-        if real_images is not None:
-            indices_real = torch.where(bins_real[i])[0]
-            real_local = real_images[indices_real]
-            #real_local = real_local.repeat_interleave(3)
-
-            if real_local.shape[0] > 8 and fake_local.shape[0] > 8:
-                fid_local = pfw.fid(fake_local, real_images=real_local,
-                                    batch_size=batch_size, dims=dims, device=device)
-        else:
-            real_m_local, real_s_local = real_m[i], real_s[i]
-            if real_s_local is not None and fake_local.shape[0] > 8:
-                fid_local = pfw.fid(fake_local, real_m=real_m_local, real_s=real_s_local,
-                                    batch_size=batch_size, dims=dims, device=device)
-        if prnt:
-            print("[{}/{}]  num fake: {:>6}  FID: {:10.4f}".format(i, nbins, fake_local.shape[0], fid_local))
-        fid_cum += fid_local
-    return fid_cum / nbins
+    sfid = calculate_frechet_distance(real_stats, fake_stats, prnt=prnt)
+    return sfid
