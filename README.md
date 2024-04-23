@@ -45,7 +45,7 @@ The code itself utilizes `torch` only, and should be sufficiently fast. However,
 2. Allow different ncenters and radii for different conditions
 
 ## Acknowledgements
-I will kindly thank Halvard Sutterud (@halvarsu) for implementation help and mental support during the development of this package. 
+I will kindly thank Halvard Sutterud ([@halvarsu](https://github.com/halvarsu)) for implementation help and mental support during the development of this package. 
 
 ## License
 [APACHE LICENSE, VERSION 2.0](https://www.apache.org/licenses/LICENSE-2.0)
